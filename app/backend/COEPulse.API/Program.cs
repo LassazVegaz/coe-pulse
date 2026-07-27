@@ -1,7 +1,11 @@
+using COEPulse.API.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+builder.Services.AddSingleton<DataService>();
 
 
 var app = builder.Build();

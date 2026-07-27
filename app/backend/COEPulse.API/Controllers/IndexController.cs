@@ -1,15 +1,18 @@
+using COEPulse.API.DTO;
+using COEPulse.API.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace COEPulse.API.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
-    public class IndexController : ControllerBase
+    [Route("/")]
+    public class IndexController(DataService ds)
+        : ControllerBase
     {
         [HttpGet]
-        public string Get()
+        public IEnumerable<COERecord> Get([FromBody] Filters filters)
         {
-            return "Hello World";
+            return ds.GetRecords(filters);
         }
     }
 }

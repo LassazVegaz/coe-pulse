@@ -6,6 +6,14 @@ export enum VehicleCategory {
   E = 4,
 }
 
+export const CATEGORY_LABELS: Record<VehicleCategory, string> = {
+  [VehicleCategory.A]: "Category A",
+  [VehicleCategory.B]: "Category B",
+  [VehicleCategory.C]: "Category C",
+  [VehicleCategory.D]: "Category D",
+  [VehicleCategory.E]: "Category E",
+};
+
 type COERecord = {
   year: number;
   month: number;

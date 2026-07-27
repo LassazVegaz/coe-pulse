@@ -1,0 +1,5 @@
+**/bin
+**/obj
+**/.vs
+**/Data
+COEPulse.API.Tests

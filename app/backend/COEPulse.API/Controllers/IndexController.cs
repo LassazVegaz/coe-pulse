@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace COEPulse.API.Controllers
 {
     [ApiController]
-    [Route("/")]
+    [Route("api/coe")]
     public class IndexController(DataService ds)
         : ControllerBase
     {
         [HttpGet]
-        public IEnumerable<COERecord> Get([FromQuery] Filters filters)
+        public COEQueryResult Get([FromQuery] Filters filters)
         {
             return ds.GetRecords(filters);
         }

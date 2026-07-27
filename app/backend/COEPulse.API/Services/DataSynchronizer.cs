@@ -11,9 +11,6 @@ public class DataSynchronizer(HttpClient httpClient, IOptions<DataAPI> dataAPI,
 {
     public async Task FetchData()
     {
-        httpClient.DefaultRequestHeaders.Add(dataAPI.Value.APIKeyHeader,
-            config[Configurations.API_KEY]);
-
         await InitiateDownload();
         var url = await PollDownload();
         var data = await DownloadData(url);

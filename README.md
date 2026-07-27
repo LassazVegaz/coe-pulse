@@ -7,6 +7,9 @@ success rates, historical trends, and the latest bidding exercise.
 Data source: [COE Bidding Results](https://data.gov.sg/datasets/d_69b3380ad7e51aff3a7dcc84eba52b8a/view)
 from data.gov.sg.
 
+![A screenshot of the application](./assets/Screenshot.png)
+_A screenshot of the application_
+
 ## Architecture
 
 - `app/backend`: .NET 10 Web API that synchronizes and queries the CSV dataset.

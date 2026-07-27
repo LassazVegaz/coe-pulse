@@ -4,6 +4,8 @@ using COEPulse.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddOptions<DataAPI>().BindConfiguration(DataAPI.Key);
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 

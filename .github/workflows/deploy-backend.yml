@@ -2,12 +2,6 @@ name: Deploy backend
 
 on:
   workflow_dispatch:
-  push:
-    branches: [experiment]
-    paths:
-      - "app/backend/**"
-      - "terraform/**"
-      - ".github/workflows/deploy-backend.yml"
 
 permissions:
   contents: read

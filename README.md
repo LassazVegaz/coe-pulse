@@ -90,9 +90,9 @@ workflow expects these GitHub Actions secrets:
 - `TF_STATE_BUCKET`: existing S3 bucket for Terraform state.
 - `DATA_GOV_API_KEY`: data.gov.sg API key.
 
-Run the **Deploy backend** workflow manually, or push relevant changes to
-`experiment`. It creates the ECR repository, runs the tests, pushes an immutable
-image tagged with the commit SHA, and applies the ECS infrastructure.
+Run the **Deploy backend** workflow manually. It creates the ECR repository,
+runs the tests, pushes an immutable image tagged with the commit SHA, and
+applies the ECS infrastructure.
 
 For a production system, add HTTPS with ACM, restrict CORS to the frontend
 origin, use private subnets with a NAT/VPC endpoints, configure autoscaling, and

@@ -7,14 +7,18 @@ using System.Net;
 namespace COEPulse.API.Services;
 
 public class DataSynchronizer(HttpClient httpClient, IOptions<DataAPI> dataAPI,
-    IConfiguration config)
+    IConfiguration config, ILogger<DataSynchronizer> logger)
 {
     public async Task FetchData()
     {
+        logger.LogInformation("Initiate downloading data");
         await InitiateDownload();
+        logger.LogInformation("Poll downloading data");
         var url = await PollDownload();
+        logger.LogInformation("Downloading data");
         var data = await DownloadData(url);
         await SaveDataToFile(data);
+        logger.LogInformation("Data saved to the file");
     }
 
 

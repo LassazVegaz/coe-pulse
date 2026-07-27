@@ -28,6 +28,7 @@ public class DataSynchronizer(HttpClient httpClient, IOptions<DataAPI> dataAPI,
 
         if (initiateResponse.StatusCode != HttpStatusCode.Created)
         {
+            await LogErrorResponse("Failed to initiate download", initiateResponse);
             throw new Exception(
                 $"Failed to initiate download. Status code: {initiateResponse.StatusCode}");
         }
@@ -67,5 +68,12 @@ public class DataSynchronizer(HttpClient httpClient, IOptions<DataAPI> dataAPI,
         var saveFile = config[Configurations.DATA_SAVE_FILE]
             ?? throw new Exception("Save file path is not configured.");
         await File.WriteAllTextAsync(saveFile, data);
+    }
+
+    private async Task LogErrorResponse(string message, HttpResponseMessage response)
+    {
+        var content = await response.Content.ReadAsStringAsync();
+        logger.LogError("{message}\nCode:{code}\nContent:{content}",
+            message, response.StatusCode, content);
     }
 }

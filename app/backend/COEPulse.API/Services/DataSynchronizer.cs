@@ -7,8 +7,11 @@ using System.Text.Json;
 
 namespace COEPulse.API.Services;
 
-public class DataSynchronizer(HttpClient httpClient, IOptions<DataAPI> dataAPI,
-    IConfiguration config, ILogger<DataSynchronizer> logger)
+public class DataSynchronizer(IOptions<DataAPI> dataAPI, IConfiguration config,
+    ILogger<DataSynchronizer> logger,
+    [FromKeyedServices(HttpClientKeys.PRODUCTION)] HttpClient prdHttpClient,
+    [FromKeyedServices(HttpClientKeys.OPEN)] HttpClient openHttpClient
+    )
 {
     public async Task<bool> FetchData(CancellationToken cancellationToken = default)
     {
@@ -41,7 +44,7 @@ public class DataSynchronizer(HttpClient httpClient, IOptions<DataAPI> dataAPI,
 
     private async Task<string> GetLastUpdatedAt(CancellationToken cancellationToken)
     {
-        using var response = await httpClient.GetAsync(dataAPI.Value.Metadata, cancellationToken);
+        using var response = await prdHttpClient.GetAsync(dataAPI.Value.Metadata, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             await LogErrorResponse("Failed to read dataset metadata", response, cancellationToken);
@@ -85,7 +88,7 @@ public class DataSynchronizer(HttpClient httpClient, IOptions<DataAPI> dataAPI,
     private async Task InitiateDownload(CancellationToken cancellationToken)
     {
         using var initiateResponse =
-            await httpClient.GetAsync(dataAPI.Value.InitiateDownload, cancellationToken);
+            await openHttpClient.GetAsync(dataAPI.Value.InitiateDownload, cancellationToken);
 
         if (initiateResponse.StatusCode != HttpStatusCode.Created)
         {
@@ -100,7 +103,7 @@ public class DataSynchronizer(HttpClient httpClient, IOptions<DataAPI> dataAPI,
         for (var attempt = 1; attempt <= 10; attempt++)
         {
             using var pollResponse =
-                await httpClient.GetAsync(dataAPI.Value.PollDownload, cancellationToken);
+                await openHttpClient.GetAsync(dataAPI.Value.PollDownload, cancellationToken);
             if (pollResponse.StatusCode == HttpStatusCode.Created)
             {
                 var body = await pollResponse.Content.ReadFromJsonAsync<Poll201>(
@@ -124,7 +127,7 @@ public class DataSynchronizer(HttpClient httpClient, IOptions<DataAPI> dataAPI,
 
     private async Task<string> DownloadData(string url, CancellationToken cancellationToken)
     {
-        using var downloadResponse = await httpClient.GetAsync(url, cancellationToken);
+        using var downloadResponse = await openHttpClient.GetAsync(url, cancellationToken);
         if (!downloadResponse.IsSuccessStatusCode)
         {
             throw new HttpRequestException(

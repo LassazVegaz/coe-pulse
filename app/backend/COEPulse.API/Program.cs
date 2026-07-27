@@ -1,6 +1,7 @@
 using COEPulse.API.AppSettings;
-using COEPulse.API.Constants;
+using COEPulse.API.Extensions;
 using COEPulse.API.Services;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,16 +15,7 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 builder.Services.AddSingleton<DataService>();
 builder.Services.AddSingleton<DataSynchronizer>();
 
-builder.Services.AddHttpClient<DataSynchronizer>(client =>
-{
-    var config = builder.Configuration.GetSection(DataAPI.Key).Get<DataAPI>()
-        ?? throw new Exception($"{DataAPI.Key} is not found in configurations");
-    var apiKey = builder.Configuration[Configurations.API_KEY]
-        ?? throw new Exception($"{Configurations.API_KEY} is not found in configurations");
-
-    client.BaseAddress = new Uri(config.BaseUrl);
-    client.DefaultRequestHeaders.Add(config.APIKeyHeader, apiKey);
-});
+builder.Services.AddLocalHttpClients(builder.Configuration);
 
 
 var app = builder.Build();

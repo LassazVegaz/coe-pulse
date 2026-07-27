@@ -1,23 +1,17 @@
 "use client";
-
 import COERecord, {
   CATEGORY_LABELS,
   VehicleCategory,
 } from "@/types/coe-record.type";
 import { useEffect, useMemo, useState } from "react";
 import { getData } from "./actions";
+import StatCard from "./components/StatCard";
+import TrendChart from "./components/TrendChart";
+import colors from "./helpers/colors";
 
 const categories = Object.values(VehicleCategory).filter(
   (value): value is VehicleCategory => typeof value === "number",
 );
-
-const colors: Record<VehicleCategory, string> = {
-  [VehicleCategory.A]: "#2865e8",
-  [VehicleCategory.B]: "#29b765",
-  [VehicleCategory.C]: "#f59a16",
-  [VehicleCategory.D]: "#8850e6",
-  [VehicleCategory.E]: "#29aec1",
-};
 
 const currency = new Intl.NumberFormat("en-SG", {
   style: "currency",
@@ -25,107 +19,6 @@ const currency = new Intl.NumberFormat("en-SG", {
   maximumFractionDigits: 0,
 });
 const number = new Intl.NumberFormat("en-SG");
-
-function StatCard({
-  tone,
-  icon,
-  label,
-  value,
-  detail,
-}: {
-  tone: string;
-  icon: string;
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <article className="stat-card">
-      <div className="stat-icon" style={{ background: tone }}>
-        {icon}
-      </div>
-      <div>
-        <p>{label}</p>
-        <strong>{value}</strong>
-        <small>{detail}</small>
-      </div>
-    </article>
-  );
-}
-
-function TrendChart({
-  records,
-  selected,
-}: {
-  records: COERecord[];
-  selected: VehicleCategory[];
-}) {
-  const series = useMemo(() => {
-    const points = records
-      .filter((record) => selected.includes(record.vehicleCategory))
-      .sort(
-        (left, right) =>
-          left.year - right.year ||
-          left.month - right.month ||
-          left.biddingNumber - right.biddingNumber,
-      );
-    const dates = [
-      ...new Set(points.map((item) => `${item.year}-${item.month}`)),
-    ].slice(-84);
-    const max = Math.max(
-      1,
-      ...points
-        .filter((item) => dates.includes(`${item.year}-${item.month}`))
-        .map((item) => item.premium),
-    );
-
-    return selected.map((category) => {
-      const categoryPoints = dates
-        .map((date, index) => {
-          const matches = points.filter(
-            (item) =>
-              item.vehicleCategory === category &&
-              `${item.year}-${item.month}` === date,
-          );
-          if (matches.length === 0) return null;
-          const premium =
-            matches.reduce((sum, item) => sum + item.premium, 0) /
-            matches.length;
-          return {
-            x: dates.length === 1 ? 50 : (index / (dates.length - 1)) * 100,
-            y: 96 - (premium / max) * 88,
-          };
-        })
-        .filter((point): point is { x: number; y: number } => point !== null);
-      return { category, categoryPoints };
-    });
-  }, [records, selected]);
-
-  return (
-    <div className="trend-chart" aria-label="COE premium trend">
-      <div className="y-labels">
-        <span>150K</span>
-        <span>100K</span>
-        <span>50K</span>
-        <span>0</span>
-      </div>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img">
-        {[8, 37, 66, 96].map((y) => (
-          <line key={y} x1="0" x2="100" y1={y} y2={y} />
-        ))}
-        {series.map(({ category, categoryPoints }) => (
-          <polyline
-            key={category}
-            points={categoryPoints
-              .map((point) => `${point.x},${point.y}`)
-              .join(" ")}
-            style={{ stroke: colors[category] }}
-          />
-        ))}
-      </svg>
-    </div>
-  );
-}
 
 export default function Home() {
   const [records, setRecords] = useState<COERecord[]>([]);
@@ -399,9 +292,7 @@ export default function Home() {
                     <td>{number.format(record.bidsReceived)}</td>
                     <td>{number.format(record.bidsSuccess)}</td>
                     <td>{currency.format(record.premium)}</td>
-                    <td>
-                      {(record.bidsReceived / record.quota).toFixed(2)}x
-                    </td>
+                    <td>{(record.bidsReceived / record.quota).toFixed(2)}x</td>
                   </tr>
                 ))}
               </tbody>
@@ -439,8 +330,12 @@ export default function Home() {
             })}
           </div>
           <div className="bar-legend">
-            <span><i className="quota" /> Quota</span>
-            <span><i className="bids" /> Bids received</span>
+            <span>
+              <i className="quota" /> Quota
+            </span>
+            <span>
+              <i className="bids" /> Bids received
+            </span>
           </div>
         </section>
       </div>

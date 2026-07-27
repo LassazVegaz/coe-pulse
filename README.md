@@ -19,9 +19,11 @@ _A screenshot of the application_
 - `.github/workflows/deploy-backend.yml`: backend test, image build, and AWS
   deployment workflow.
 
-The API checks the dataset metadata on startup. It downloads a new CSV only when
-`lastUpdatedAt` changes, then replaces the local file atomically. This avoids an
-unnecessary full download on every restart.
+The API checks the dataset metadata on startup and every six hours while the
+application is running. It downloads a new CSV only when `lastUpdatedAt`
+changes, replaces the local file atomically, and then swaps the in-memory
+snapshot. A failed scheduled refresh is logged while the last valid snapshot
+continues to serve requests.
 
 ## Run locally
 
@@ -39,14 +41,15 @@ The launch profile serves the API locally. Check its printed URL, then verify:
 
 ```text
 GET /health
-GET /api/coe?pageNo=1&pageSize=100&fromYear=2022&categories=A&categories=B
+GET /api/coe?pageNo=1&pageSize=100&fromYear=2022&fromMonth=1&toYear=2024&toMonth=12&categories=A&categories=B
 ```
 
 Query parameters:
 
 - `pageNo`: page number; defaults to 1.
 - `pageSize`: 1–2,000; defaults to 100.
-- `fromYear` / `toYear`: optional inclusive year range.
+- `fromYear` / `fromMonth`: optional inclusive range start.
+- `toYear` / `toMonth`: optional inclusive range end.
 - `categories`: repeatable values `A` through `E`.
 
 The response contains `records`, `total`, `pageNo`, and `pageSize`.
@@ -81,8 +84,8 @@ pnpm lint
 pnpm build
 ```
 
-The backend tests cover downloading a new dataset and skipping the download
-when the remote metadata timestamp is unchanged.
+The backend tests cover downloading a new dataset, skipping the download when
+the remote metadata timestamp is unchanged, and inclusive month-range filtering.
 
 ## AWS deployment
 
@@ -111,9 +114,8 @@ persist the downloaded dataset in S3 rather than task-local storage.
   dataset.
 - The dashboard uses lightweight SVG/CSS charts to keep the assessment small
   and avoid a charting dependency.
-
-## Limitations
-
-- The dataset does not check if a new dataset is available in data.gov.sg periodically. It only checks new data at the beginning of the application. This is a problem if the application keep running for more than 3 weeks. data.gov.sg updates data every 2-3 weeks time.
-- This application can have more filters. Example: Selecting a date range. Displaying a pie chart of various data distributions.
-- Downstream data from backend to frontend can be handled in more user friendly ways than implemented in this application.
+- Expected API failures are returned to the dashboard as typed results. The UI
+  shows loading, empty, stale-data, timeout, and retry states without discarding
+  previously loaded records.
+- The dashboard supports inclusive month-range filtering and includes premium
+  trends, quota-demand comparison, and latest bid-outcome distribution.

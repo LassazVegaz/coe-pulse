@@ -1,5 +1,6 @@
 using COEPulse.API.AppSettings;
 using COEPulse.API.Constants;
+using COEPulse.API.DTO;
 using COEPulse.API.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -9,53 +10,44 @@ using System.Text;
 
 namespace COEPulse.API.Tests;
 
-public class DataSynchronizerTests : IDisposable
+public class DataServiceTests : IDisposable
 {
     private readonly string _directory = Path.Combine(
-        Path.GetTempPath(), $"coe-pulse-tests-{Guid.NewGuid():N}");
+        Path.GetTempPath(), $"coe-pulse-service-tests-{Guid.NewGuid():N}");
 
     [Fact]
-    public async Task FetchData_DownloadsAndStoresDataset_WhenNoLocalCopyExists()
-    {
-        var handler = new StubHttpMessageHandler(
-            Json(HttpStatusCode.OK, """{"data":{"lastUpdatedAt":"2026-07-22T00:00:00Z"}}"""),
-            Json(HttpStatusCode.Created, "{}"),
-            Json(HttpStatusCode.Created, """{"data":{"url":"https://download.test/coe.csv"}}"""),
-            new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("year,month\n2026,7", Encoding.UTF8, "text/csv")
-            });
-        var synchronizer = CreateSynchronizer(handler);
-
-        var downloaded = await synchronizer.FetchData();
-
-        Assert.True(downloaded);
-        Assert.Equal("year,month\n2026,7", await File.ReadAllTextAsync(DataFile));
-        Assert.Equal("2026-07-22T00:00:00Z",
-            await File.ReadAllTextAsync($"{DataFile}.metadata"));
-        Assert.Equal(4, handler.RequestCount);
-    }
-
-    [Fact]
-    public async Task FetchData_SkipsDownload_WhenDatasetTimestampHasNotChanged()
+    public async Task GetRecords_FiltersByInclusiveMonthRange()
     {
         Directory.CreateDirectory(_directory);
-        await File.WriteAllTextAsync(DataFile, "cached csv");
+        await File.WriteAllTextAsync(DataFile,
+            """
+            month,bidding_no,vehicle_class,quota,bids_success,bids_received,premium
+            2025-12,1,Category A,100,90,120,100000
+            2026-01,1,Category A,100,90,120,101000
+            2026-02,1,Category A,100,90,120,102000
+            """);
         await File.WriteAllTextAsync($"{DataFile}.metadata", "2026-07-22T00:00:00Z");
-        var handler = new StubHttpMessageHandler(
-            Json(HttpStatusCode.OK, """{"data":{"lastUpdatedAt":"2026-07-22T00:00:00Z"}}"""));
-        var synchronizer = CreateSynchronizer(handler);
 
-        var downloaded = await synchronizer.FetchData();
+        var service = CreateDataService();
+        await service.LoadData();
 
-        Assert.False(downloaded);
-        Assert.Equal("cached csv", await File.ReadAllTextAsync(DataFile));
-        Assert.Equal(1, handler.RequestCount);
+        var result = service.GetRecords(new Filters
+        {
+            FromYear = 2026,
+            FromMonth = 1,
+            ToYear = 2026,
+            ToMonth = 1,
+            Categories = [VehicleCategory.A]
+        });
+
+        var record = Assert.Single(result.Records);
+        Assert.Equal(2026, record.Year);
+        Assert.Equal(1, record.Month);
     }
 
     private string DataFile => Path.Combine(_directory, "data.csv");
 
-    private DataSynchronizer CreateSynchronizer(HttpMessageHandler handler)
+    private DataService CreateDataService()
     {
         var settings = Options.Create(new DataAPI
         {
@@ -72,28 +64,34 @@ public class DataSynchronizerTests : IDisposable
                 [Configurations.DATA_SAVE_FILE] = DataFile
             })
             .Build();
-        var productionClient = new HttpClient(handler)
+        var productionClient = new HttpClient(new StubHttpMessageHandler(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """{"data":{"lastUpdatedAt":"2026-07-22T00:00:00Z"}}""",
+                    Encoding.UTF8,
+                    "application/json")
+            }))
         {
             BaseAddress = new Uri(settings.Value.PrdBaseUrl)
         };
-        var openClient = new HttpClient(handler)
+        var openClient = new HttpClient(new StubHttpMessageHandler())
         {
             BaseAddress = new Uri(settings.Value.OpenBaseUrl)
         };
-
-        return new DataSynchronizer(
+        var synchronizer = new DataSynchronizer(
             settings,
             configuration,
             NullLogger<DataSynchronizer>.Instance,
             productionClient,
             openClient);
-    }
 
-    private static HttpResponseMessage Json(HttpStatusCode statusCode, string body) =>
-        new(statusCode)
-        {
-            Content = new StringContent(body, Encoding.UTF8, "application/json")
-        };
+        return new DataService(
+            synchronizer,
+            configuration,
+            new DataFormatter(NullLogger<DataFormatter>.Instance),
+            NullLogger<DataService>.Instance);
+    }
 
     public void Dispose()
     {
@@ -106,12 +104,10 @@ public class DataSynchronizerTests : IDisposable
         : HttpMessageHandler
     {
         private readonly Queue<HttpResponseMessage> _responses = new(responses);
-        public int RequestCount { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            RequestCount++;
             if (_responses.Count == 0)
                 throw new InvalidOperationException($"Unexpected request: {request.RequestUri}");
 

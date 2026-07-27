@@ -5,6 +5,7 @@ import COERecord, {
 } from "@/types/coe-record.type";
 import { useEffect, useMemo, useState } from "react";
 import { getData } from "./actions";
+import BidOutcomeChart from "./components/BidOutcomeChart";
 import StatCard from "./components/StatCard";
 import TrendChart from "./components/TrendChart";
 import colors from "./helpers/colors";
@@ -20,20 +21,53 @@ const currency = new Intl.NumberFormat("en-SG", {
 });
 const number = new Intl.NumberFormat("en-SG");
 
+const parseMonth = (value: string) => {
+  const [year, month] = value.split("-").map(Number);
+  return { year, month };
+};
+
 export default function Home() {
   const [records, setRecords] = useState<COERecord[]>([]);
   const [selected, setSelected] = useState<VehicleCategory[]>(categories);
-  const [fromYear, setFromYear] = useState(2018);
+  const [fromMonth, setFromMonth] = useState("2018-01");
+  const [toMonth, setToMonth] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const [reloadKey, setReloadKey] = useState(0);
+  const rangeError =
+    toMonth && fromMonth > toMonth
+      ? "The start month must be before the end month."
+      : undefined;
+  const visibleError = rangeError ?? error;
+  const isLoading = loading && !rangeError;
 
   useEffect(() => {
     let active = true;
-    getData({ pageNo: 1, pageSize: 2000, fromYear, categories: selected })
+    if (rangeError) {
+      return () => {
+        active = false;
+      };
+    }
+
+    const from = fromMonth ? parseMonth(fromMonth) : undefined;
+    const to = toMonth ? parseMonth(toMonth) : undefined;
+    getData({
+      pageNo: 1,
+      pageSize: 2000,
+      fromYear: from?.year,
+      fromMonth: from?.month,
+      toYear: to?.year,
+      toMonth: to?.month,
+      categories: selected,
+    })
       .then((result) => {
-        if (active) {
-          setRecords(result.records);
+        if (!active) return;
+
+        if (result.ok) {
+          setRecords(result.data.records);
           setError(undefined);
+        } else {
+          setError(result.error);
         }
       })
       .catch((reason: unknown) => {
@@ -46,7 +80,7 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [fromYear, selected]);
+  }, [fromMonth, toMonth, selected, reloadKey, rangeError]);
 
   const latest = useMemo(() => {
     if (records.length === 0) return [];
@@ -79,15 +113,24 @@ export default function Home() {
     { quota: 0, bids: 0, success: 0 },
   );
   const demand = totals.quota ? totals.bids / totals.quota : 0;
+  const dataStatus = isLoading
+    ? "Refreshing data"
+    : visibleError
+      ? records.length
+        ? "Showing saved data"
+        : "Dataset unavailable"
+      : "Dataset live";
 
-  const toggleCategory = (category: VehicleCategory) =>
+  const toggleCategory = (category: VehicleCategory) => {
+    if (selected.includes(category) && selected.length === 1) return;
+
+    setLoading(true);
     setSelected((current) =>
       current.includes(category)
-        ? current.length === 1
-          ? current
-          : current.filter((item) => item !== category)
+        ? current.filter((item) => item !== category)
         : [...current, category].sort(),
     );
+  };
 
   return (
     <main className="shell">
@@ -97,9 +140,14 @@ export default function Home() {
           <h1>COE Pulse SG</h1>
           <p>Track COE trends, demand &amp; premiums</p>
         </div>
-        <div className="dataset-status">
-          <span className="status-dot">✓</span>
-          Dataset live
+        <div
+          className={`dataset-status ${visibleError ? "has-error" : ""}`}
+          aria-live="polite"
+        >
+          <span className="status-dot">
+            {visibleError ? "!" : isLoading ? "…" : "✓"}
+          </span>
+          {dataStatus}
         </div>
       </header>
 
@@ -118,8 +166,11 @@ export default function Home() {
             <h2>Filters</h2>
             <button
               onClick={() => {
+                setLoading(true);
                 setSelected(categories);
-                setFromYear(2018);
+                setFromMonth("2018-01");
+                setToMonth("");
+                setReloadKey((value) => value + 1);
               }}
             >
               Clear all
@@ -137,17 +188,30 @@ export default function Home() {
               </button>
             ))}
           </div>
-          <label htmlFor="from-year">History from</label>
-          <select
-            id="from-year"
-            value={fromYear}
-            onChange={(event) => setFromYear(Number(event.target.value))}
-          >
-            <option value="2010">2010</option>
-            <option value="2015">2015</option>
-            <option value="2018">2018</option>
-            <option value="2022">2022</option>
-          </select>
+          <label htmlFor="from-month">From month</label>
+          <input
+            id="from-month"
+            type="month"
+            min="2002-01"
+            max={toMonth || undefined}
+            value={fromMonth}
+            onChange={(event) => {
+              setLoading(true);
+              setFromMonth(event.target.value);
+            }}
+          />
+          <label htmlFor="to-month">To month</label>
+          <input
+            id="to-month"
+            type="month"
+            min={fromMonth || "2002-01"}
+            value={toMonth}
+            onChange={(event) => {
+              setLoading(true);
+              setToMonth(event.target.value);
+            }}
+          />
+          <small className="filter-hint">Leave the end month empty for latest.</small>
           <div className="about-data">
             <h3>About the data</h3>
             <p>
@@ -165,8 +229,27 @@ export default function Home() {
       </aside>
 
       <div className="dashboard" id="dashboard">
-        {error && <div className="error-banner">{error}</div>}
-        <section className="stats-grid" aria-busy={loading}>
+        {visibleError && (
+          <div className="error-banner" role="alert">
+            <span>{visibleError}</span>
+            {!rangeError && (
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  setReloadKey((value) => value + 1);
+                }}
+              >
+                Try again
+              </button>
+            )}
+          </div>
+        )}
+        {isLoading && records.length === 0 && (
+          <div className="loading-banner" role="status">
+            Loading COE bidding data…
+          </div>
+        )}
+        <section className="stats-grid" aria-busy={isLoading}>
           <StatCard
             tone="#3b72ec"
             icon="$"
@@ -210,7 +293,9 @@ export default function Home() {
               <h2>COE Premium Trend</h2>
               <p>Monthly average by vehicle category</p>
             </div>
-            <span>{fromYear} — latest</span>
+            <span>
+              {fromMonth || "earliest"} — {toMonth || "latest"}
+            </span>
           </div>
           <div className="legend">
             {selected.map((category) => (
@@ -221,6 +306,11 @@ export default function Home() {
             ))}
           </div>
           <TrendChart records={records} selected={selected} />
+          {!isLoading && records.length === 0 && (
+            <p className="empty-state">
+              No bidding records match this date range and category selection.
+            </p>
+          )}
         </section>
 
         <section className="panel details-panel">
@@ -252,6 +342,16 @@ export default function Home() {
               <strong>{latest.length}</strong>
             </div>
           </div>
+        </section>
+
+        <section className="panel outcome-panel">
+          <div className="panel-title">
+            <div>
+              <h2>Bid Outcome Distribution</h2>
+              <p>Latest exercise across selected categories</p>
+            </div>
+          </div>
+          <BidOutcomeChart successful={totals.success} received={totals.bids} />
         </section>
 
         <section className="panel results-panel" id="results">

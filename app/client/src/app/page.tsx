@@ -111,9 +111,7 @@ export default function Home() {
           <a href="#results">
             <span>▤</span> Bidding Results
           </a>
-          <a href="#trends">
-            <span>⌁</span> Trends &amp; Analytics
-          </a>
+          <a href="#trends">Trends &amp; Analytics</a>
         </nav>
         <section className="filters">
           <div className="section-heading">

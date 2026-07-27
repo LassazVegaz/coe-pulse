@@ -33,4 +33,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+var dataService = app.Services.GetRequiredService<DataService>();
+await dataService.LoadData();
+
 app.Run();

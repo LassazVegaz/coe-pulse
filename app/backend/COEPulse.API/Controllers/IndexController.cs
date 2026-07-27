@@ -10,7 +10,7 @@ namespace COEPulse.API.Controllers
         : ControllerBase
     {
         [HttpGet]
-        public IEnumerable<COERecord> Get([FromBody] Filters filters)
+        public IEnumerable<COERecord> Get([FromQuery] Filters filters)
         {
             return ds.GetRecords(filters);
         }

@@ -19,17 +19,8 @@ public record COEQueryResult(
     int PageSize);
 
 public class DataService(DataSynchronizer synchronizer, IConfiguration config,
-    ILogger<DataService> logger)
+    DataFormatter formatter)
 {
-    private readonly Dictionary<string, VehicleCategory> _categoryMapping = new()
-    {
-        { "category a", VehicleCategory.A },
-        { "category b", VehicleCategory.B },
-        { "category c", VehicleCategory.C },
-        { "category d", VehicleCategory.D },
-        { "category e", VehicleCategory.E }
-    };
-
     private COERecord[]? _records;
 
 
@@ -37,7 +28,7 @@ public class DataService(DataSynchronizer synchronizer, IConfiguration config,
     {
         await synchronizer.FetchData();
         var csvData = await ReadDataFromFile();
-        _records = FormatData(csvData);
+        _records = formatter.FormatData(csvData);
     }
 
     public COEQueryResult GetRecords(Filters filters)
@@ -77,40 +68,5 @@ public class DataService(DataSynchronizer synchronizer, IConfiguration config,
             ?? throw new Exception("Save file path is not configured.");
         var path = Path.GetFullPath(configuredPath, AppContext.BaseDirectory);
         return await File.ReadAllTextAsync(path);
-    }
-
-    private COERecord[] FormatData(string csvData)
-    {
-        var lines = csvData.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-        var records = new List<COERecord>();
-        foreach (var line in lines.Skip(1)) // Skip header
-        {
-            var fields = line.Split(',');
-            if (fields.Length < 8) continue;
-
-            COERecord record;
-            try
-            {
-                record = new()
-                {
-                    Year = int.Parse(fields[0]),
-                    Month = int.Parse(fields[1]),
-                    BiddingNumber = int.Parse(fields[2]),
-                    VehicleCategory = _categoryMapping[fields[3].ToLower()],
-                    Quota = int.Parse(fields[4]),
-                    BidsSuccess = int.Parse(fields[5]),
-                    BidsReceived = int.Parse(fields[6]),
-                    Premium = int.Parse(fields[7])
-                };
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Error parsing line: {Line}", line);
-                continue;
-            }
-
-            records.Add(record);
-        }
-        return [.. records];
     }
 }

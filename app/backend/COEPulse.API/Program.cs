@@ -14,6 +14,7 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 
 builder.Services.AddSingleton<DataService>();
 builder.Services.AddSingleton<DataSynchronizer>();
+builder.Services.AddSingleton<DataFormatter>();
 
 builder.Services.AddLocalHttpClients(builder.Configuration);
 

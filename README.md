@@ -108,3 +108,8 @@ persist the downloaded dataset in S3 rather than task-local storage.
   dataset.
 - The dashboard uses lightweight SVG/CSS charts to keep the assessment small
   and avoid a charting dependency.
+
+## Limitations
+
+- The dataset does not check if a new dataset is available in data.gov.sg periodically. It only checks new data at the beginning of the application. This is a problem if the application keep running for more than 3 weeks. data.gov.sg updates data every 2-3 weeks time.
+- This application can have more filters. Example: Selecting a date range. Displaying a pie chart of various data distributions.
